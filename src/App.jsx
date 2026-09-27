@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo } from "react";
 import { useDatabase } from "./context/DatabaseContext";
 import useCurrentLocation from "./hooks/useCurrentLocation";
 import SearchBar from "./components/common/SearchBar";
@@ -406,7 +406,7 @@ export default function App() {
       ...e,
       type: 'event',
       name: e.event_name,
-      event_category: e.event_category || e.category || 'General'
+      event_category: e.event_category || e.category || 'Check In'
     }));
     if (!eventItems || eventItems.length === 0) return [];
     if (!activeCategory) return eventItems;
