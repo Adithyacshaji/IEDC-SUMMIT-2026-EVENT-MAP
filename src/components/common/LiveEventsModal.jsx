@@ -27,9 +27,11 @@ function getSpeakerDisplay(event) {
 
 function getTimeString(e) {
   if (!e) return '';
+  if (e.time_slot && String(e.time_slot).trim()) return String(e.time_slot).trim();
+  if (e.time && String(e.time).trim()) return String(e.time).trim();
   if (e.time_start && e.time_end) return `${e.time_start.substring(0, 5)} – ${e.time_end.substring(0, 5)}`;
   if (e.time_start) return e.time_start.substring(0, 5);
-  return e.time_slot || e.time || '';
+  return '';
 }
 
 function getCategoryTheme(categoryName) {

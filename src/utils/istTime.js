@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Utility functions for Indian Standard Time (IST - Asia/Kolkata) date and time checks.
  */
 
@@ -12,10 +12,11 @@ export function getIndianDateTime() {
 }
 
 /**
- * Checks if an event is currently LIVE based on Indian Standard Time (IST)
+ * Checks if an event is currently LIVE based on Indian Standard Time (IST).
+ * Uses 24-hour time_start and time_end strings for the live time comparison.
  */
 export function isEventLiveInIST(event, istNow = getIndianDateTime()) {
-  if (!event || !event.event_date || !event.time_start || !event.time_end) return false;
+  if (!event || !event.time_start || !event.time_end) return false;
 
   // Format current IST date into YYYY-MM-DD
   const year = istNow.getFullYear();
@@ -23,22 +24,22 @@ export function isEventLiveInIST(event, istNow = getIndianDateTime()) {
   const day = String(istNow.getDate()).padStart(2, '0');
   const currentIstDateStr = `${year}-${month}-${day}`;
 
-  // Normalize event_date to YYYY-MM-DD
-  let eventDateStr = event.event_date;
-  if (typeof eventDateStr === 'string' && eventDateStr.includes('T')) {
-    eventDateStr = eventDateStr.split('T')[0];
+  // Check event_date if specified
+  if (event.event_date) {
+    let eventDateStr = event.event_date;
+    if (typeof eventDateStr === 'string' && eventDateStr.includes('T')) {
+      eventDateStr = eventDateStr.split('T')[0];
+    }
+    if (currentIstDateStr !== eventDateStr) {
+      return false;
+    }
   }
 
-  // 1. Date comparison in India Standard Time
-  if (currentIstDateStr !== eventDateStr) {
-    return false;
-  }
-
-  // 2. Time comparison in India Standard Time
+  // Time comparison using 24-hour time_start and time_end
   const parseTimeToMinutes = (tStr) => {
     if (!tStr) return 0;
-    const parts = tStr.split(':').map((v) => parseInt(v) || 0);
-    return parts[0] * 60 + parts[1];
+    const parts = String(tStr).trim().split(':').map((v) => parseInt(v, 10) || 0);
+    return parts[0] * 60 + (parts[1] || 0);
   };
 
   const currentMinutes = istNow.getHours() * 60 + istNow.getMinutes();
