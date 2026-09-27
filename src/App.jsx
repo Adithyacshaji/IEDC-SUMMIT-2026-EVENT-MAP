@@ -467,7 +467,7 @@ export default function App() {
     } else if (activeCategory) {
       setActiveCategory(null);
     } else {
-      setShowLanding(true);
+      window.location.href = "https://webapp.iedcsummit.in/";
     }
   };
 
