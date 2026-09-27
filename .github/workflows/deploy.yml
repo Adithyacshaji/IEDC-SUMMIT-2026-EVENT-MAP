@@ -33,6 +33,24 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_CARTO_API_KEY: ${{ secrets.VITE_CARTO_API_KEY }}
 
+      # TEMP: debug OIDC trust mismatch — remove once deploy works
+      - name: Debug OIDC claims
+        env:
+          ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+        run: |
+          TOKEN=$(curl -sH "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
+          PAYLOAD=$(echo "$TOKEN" | cut -d. -f2 | tr '_-' '/+')
+          while [ $(( ${#PAYLOAD} % 4 )) -ne 0 ]; do PAYLOAD="$PAYLOAD="; done
+          echo "$PAYLOAD" | base64 -d | jq '{sub, aud, repository, environment}'
+          if [ -z "$ROLE_ARN" ]; then
+            echo "AWS_ROLE_ARN secret is EMPTY or not visible to this job"
+          elif echo "$ROLE_ARN" | grep -qE '^arn:aws:iam::646366347834:role/[A-Za-z0-9+=,.@_/-]+$'; then
+            echo "AWS_ROLE_ARN format OK (account 646366347834)"
+          else
+            echo "AWS_ROLE_ARN looks WRONG (bad account, typo, or whitespace). Length: ${#ROLE_ARN}"
+          fi
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
