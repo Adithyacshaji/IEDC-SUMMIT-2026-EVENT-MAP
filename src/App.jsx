@@ -454,6 +454,23 @@ export default function App() {
     setShowFeedbackCard(true);
   };
 
+  // Universal Back Button Handler for Top-Left Header Bar
+  const handleBackClick = () => {
+    if (showFeedbackCard) {
+      setShowFeedbackCard(false);
+    } else if (bottomSheetOpen) {
+      setBottomSheetOpen(false);
+    } else if (showLiveModal) {
+      setShowLiveModal(false);
+    } else if (destination || isNavigating) {
+      handleCancelNavigation();
+    } else if (activeCategory) {
+      setActiveCategory(null);
+    } else {
+      setShowLanding(true);
+    }
+  };
+
   if (dbLoading) {
     return <LoadingScreen message="Loading IEDC Summit Outdoor Map..." />;
   }
@@ -489,8 +506,21 @@ export default function App() {
       {/* Top Floating Control Bar */}
       <div className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-0 right-0 z-40 px-3 sm:px-4 max-w-lg mx-auto pointer-events-none flex flex-col gap-2">
         {!destination && (
-          <div className="w-full bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-md border border-gray-200/80 flex items-center justify-between pointer-events-auto">
-            <CampusCompassEmblem size="small" />
+          <div className="w-full bg-white/95 backdrop-blur-md px-3 py-2 rounded-2xl shadow-md border border-gray-200/80 flex items-center justify-between pointer-events-auto">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleBackClick}
+                className="w-8 h-8 flex items-center justify-center bg-gray-100/90 hover:bg-gray-200 active:scale-90 text-gray-700 rounded-xl transition-all cursor-pointer border border-gray-200/60 shrink-0"
+                title="Go Back"
+                aria-label="Go Back"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="19" y1="12" x2="5" y2="12"></line>
+                  <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+              </button>
+              <CampusCompassEmblem size="small" />
+            </div>
 
             <button
               onClick={() => setShowLiveModal(true)}
