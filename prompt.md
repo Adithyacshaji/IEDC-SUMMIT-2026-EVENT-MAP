@@ -1,16 +1,6 @@
-# first task
-**Instead of telling the map or marker to jump directly to the target degree numbers sent by the browser, you tell the code: "Every frame (60 times a second), slowly drift towards the current target angle."**
+# first task 
+** path is not displaying for take me there of bottom sheet make it work properly with out effecting other wokring**
 
 # second task
-**To point the map directly south, you need to set this value to 180 degrees.
-Keep the Compass Visible: Ensure the UI compass widget is enabled. It will automatically point "down" toward the bottom of the screen to indicate where North is.**
-
-# third task
-** you need to implement Heading Tracking (often called "Course Up" or "Follow Bearings" mode)
-This automatically rotates the map to match the direction the user's phone is physically facing.
-When a user turns left, the map rotates right, ensuring that whatever is physically in front of the user is always at the top of their screen.**
-
-# fourth task
-** since it is a website think if we need request permission to access the mobile device's DeviceOrientation API (the compass) and feed that angle into your map framework.**
-# fifth task
-** implement line pattern textures or geodesic dash arrays that repeat along your route line geometry**
+** need to add an emblem "C:\Users\ADITHYA\Downloads\WhatsApp Image 2026-09-26 at 8.27.30 PM.jpeg" and the name CAMPUS COMPASS, below it add IEDC CCE in the map it should align perfectly at any position should look good and should not effect any view of map and should be small
+can also place it in the pop up that we are showing and make sure it look properly aligned with the page without making any mess ** 

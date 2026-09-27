@@ -3,13 +3,14 @@ import { Sheet } from 'react-modal-sheet';
 import { Building2, MapPin, Wrench, Users, Sparkles, Rocket, Trophy, Award, Music } from 'lucide-react';
 import { getIndianDateTime, isEventLiveInIST } from '../../utils/istTime';
 
+
 function getCategoryIcon(name) {
   const n = (name || '').toLowerCase();
-  if (n.includes('workshop')) return Wrench;
-  if (n.includes('panel') || n.includes('fireside')) return Users;
-  if (n.includes('activity')) return Sparkles;
-  if (n.includes('exhibition') || n.includes('startup')) return Rocket;
-  if (n.includes('hackathon') || n.includes('quiz')) return Trophy;
+  if (n.includes('workshop') || n.includes('clinic')) return Wrench;
+  if (n.includes('panel') || n.includes('chat') || n.includes('fireside')) return Users;
+  if (n.includes('startup') || n.includes('exhibition') || n.includes('expo') || n.includes('pitch')) return Rocket;
+  if (n.includes('activity') || n.includes('hub')) return Sparkles;
+  if (n.includes('hackathon') || n.includes('quiz') || n.includes('competition')) return Trophy;
   if (n.includes('formal') || n.includes('function') || n.includes('session')) return Award;
   if (n.includes('pro')) return Music;
   return Building2;
@@ -24,25 +25,7 @@ function BottomSheet({ isOpen, onClose, buildingName = "Category", events = [], 
     return () => clearInterval(timer);
   }, []);
 
-  // Phone hardware back button handler with History API integration
-  useEffect(() => {
-    if (!isOpen) return;
 
-    window.history.pushState({ bottomSheetOpen: true }, '', '#bottomsheet');
-
-    const handlePopState = () => {
-      onClose();
-    };
-
-    window.addEventListener('popstate', handlePopState);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-      if (window.history.state?.bottomSheetOpen) {
-        window.history.back();
-      }
-    };
-  }, [isOpen]);
 
   // Reset selected time filter to 'ALL' whenever bottom sheet opens or category changes
   useEffect(() => {
@@ -101,24 +84,41 @@ function BottomSheet({ isOpen, onClose, buildingName = "Category", events = [], 
       <Sheet 
         isOpen={isOpen} 
         onClose={onClose} 
-        snapPoints={[0, 0.9, 1]} 
-        initialSnap={1}
+        snapPoints={[0, 0.5, 0.88]} 
+        initialSnap={2}
+        springConfig={{ stiffness: 300, damping: 30, mass: 0.8 }}
       >
-        <Sheet.Container style={{ borderTopLeftRadius: '28px', borderTopRightRadius: '28px' }}>
-          <Sheet.Header />
-          <Sheet.Content disableScrollLock={true}>
-            <div className='px-5 pb-8 h-full overflow-y-auto hide-scrollbar'>
+        <Sheet.Container 
+          style={{ 
+            borderTopLeftRadius: '28px', 
+            borderTopRightRadius: '28px',
+            boxShadow: '0 -10px 30px rgba(0, 0, 0, 0.15)',
+            willChange: 'transform',
+          }}
+        >
+          <Sheet.Header className="cursor-grab active:cursor-grabbing">
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full my-2.5 mx-auto opacity-80" />
+          </Sheet.Header>
+          <Sheet.Content disableScrollLock={true} style={{ overscrollBehaviorY: 'contain' }}>
+            <div 
+              className='px-5 pb-8 h-full overflow-y-auto hide-scrollbar'
+              style={{ 
+                WebkitOverflowScrolling: 'touch',
+                touchAction: 'pan-y',
+                overscrollBehaviorY: 'contain'
+              }}
+            >
               {/* Header Title displaying current category name */}
               <div className='flex items-center gap-3 mb-4 pt-1'>
                 <div className='p-2.5 bg-blue-50 text-blue-600 rounded-2xl border border-blue-100 shadow-sm'>
-                  <HeaderIcon size={26} strokeWidth={2.2} />
+                  <HeaderIcon size={24} strokeWidth={2.2} />
                 </div>
                 <div>
-                  <h2 className='text-xl font-extrabold text-gray-900 leading-tight'>
+                  <h2 className='text-lg font-extrabold text-gray-900 leading-tight'>
                     {buildingName}
                   </h2>
                   <p className='text-xs text-gray-500 font-medium mt-0.5'>
-                    {events.length} {events.length === 1 ? 'event' : 'events'} in this category
+                    {events.length} {events.length === 1 ? 'event' : 'events'}
                   </p>
                 </div>
               </div>
@@ -164,7 +164,7 @@ function BottomSheet({ isOpen, onClose, buildingName = "Category", events = [], 
                     const floorDisp = event.floor || event.floor_number;
                     const KNOWN_CATEGORIES = [
                       "workshops and clinics",
-                      "panel discussions and fireside chats",
+                      "panel discussions and chats",
                       "panel discussions & chats",
                       "activity hub",
                       "startup exhibitions",

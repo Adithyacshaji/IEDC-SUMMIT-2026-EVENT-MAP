@@ -1,21 +1,48 @@
-import React from "react";
-import { Wrench, Users, Sparkles, Rocket, Trophy, Award, Music } from "lucide-react";
+import React, { useMemo } from "react";
+import { useDatabase } from "../../context/DatabaseContext";
+import { Wrench, Users, Sparkles, Rocket, Trophy, Award, Music, Building2 } from "lucide-react";
 
-const CATEGORIES = [
-  { id: "Workshops and Clinics", label: "Workshops & Clinics", icon: Wrench },
-  { id: "Panel Discussions and Fireside Chats", label: "Panel Discussions & Chats", icon: Users },
-  { id: "Activity hub", label: "Activity Hub", icon: Sparkles },
-  { id: "Startup exhibitions", label: "Startup Exhibitions", icon: Rocket },
-  { id: "Hackathons and Quiz", label: "Hackathons & Quiz", icon: Trophy },
-  { id: "Formal Function", label: "Formal Functions", icon: Award },
-  { id: "Proshow", label: "Pro Show", icon: Music },
-];
+function getCategoryIcon(categoryName) {
+  const n = (categoryName || '').toLowerCase();
+  if (n.includes('workshop') || n.includes('clinic')) return Wrench;
+  if (n.includes('panel') || n.includes('chat') || n.includes('fireside') || n.includes('talk')) return Users;
+  if (n.includes('startup') || n.includes('exhibition') || n.includes('expo') || n.includes('pitch')) return Rocket;
+  if (n.includes('activity') || n.includes('hub')) return Sparkles;
+  if (n.includes('hackathon') || n.includes('quiz') || n.includes('competition')) return Trophy;
+  if (n.includes('formal') || n.includes('function') || n.includes('session')) return Award;
+  if (n.includes('pro')) return Music;
+  return Building2;
+}
 
-function SearchChips({ onSelectCategory, activeCategory = "Workshops and Clinics" }) {
+function SearchChips({ onSelectCategory, activeCategory }) {
+  const { events } = useDatabase();
+
+  const categories = useMemo(() => {
+    if (!events || events.length === 0) return [];
+    const counts = {};
+    events.forEach(e => {
+      const cat = (e.event_category || e.category || '').trim();
+      if (cat) {
+        counts[cat] = (counts[cat] || 0) + 1;
+      }
+    });
+
+    return Object.keys(counts)
+      .sort((a, b) => counts[b] - counts[a])
+      .map(catName => ({
+        id: catName,
+        label: catName,
+        count: counts[catName],
+        icon: getCategoryIcon(catName)
+      }));
+  }, [events]);
+
+  if (!categories || categories.length === 0) return null;
+
   return (
     <div className="w-full mx-auto overflow-x-auto custom-scrollbar pointer-events-auto mt-3 pb-2 -mb-2 hide-scrollbar">
       <div className="flex items-center gap-3 px-4 pb-2">
-        {CATEGORIES.map((cat) => {
+        {categories.map((cat) => {
           const isActive = activeCategory === cat.id;
           const Icon = cat.icon;
           return (
@@ -30,7 +57,7 @@ function SearchChips({ onSelectCategory, activeCategory = "Workshops and Clinics
               }
             >
               <Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
-              {cat.label}
+              <span>{cat.label}</span>
             </button>
           );
         })}

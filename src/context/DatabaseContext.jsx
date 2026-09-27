@@ -48,7 +48,29 @@ export const DatabaseProvider = ({ children }) => {
     setLoading(false);
   };
 
-  useEffect(() => { loadAllData(); }, []);
+  useEffect(() => {
+    loadAllData();
+
+    if (!isSupabaseConfigured) return;
+
+    // Set up real-time listener for events, outdoor_nodes, and outdoor_edges
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => {
+        fetchEvents();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'outdoor_nodes' }, () => {
+        fetchNodes();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'outdoor_edges' }, () => {
+        fetchEdges();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   // ── searchItems ─────────────────────────────────────────────────────────────
   // Merges events + outdoor_nodes into one unified list for the search bar.
@@ -75,9 +97,9 @@ export const DatabaseProvider = ({ children }) => {
 
       // Resolve outdoor node for map routing
       const bNode = findMatchingBuildingNode(building, nodes);
-      const pos   = bNode && bNode.latitude && bNode.longitude
-        ? [parseFloat(bNode.latitude), parseFloat(bNode.longitude)]
-        : null;
+      const lat = bNode ? parseFloat(bNode.latitude) : NaN;
+      const lng = bNode ? parseFloat(bNode.longitude) : NaN;
+      const pos = !isNaN(lat) && !isNaN(lng) ? [lat, lng] : null;
 
       return {
         // Raw DB fields kept intact
@@ -104,9 +126,19 @@ export const DatabaseProvider = ({ children }) => {
       };
     });
 
-    // ── Location items (outdoor nodes) ───────────────────────────────────────
+    // ── Location items (entrance outdoor nodes only) ─────────────────────────
     const nodeItems = nodes
-      .filter(n => n.building_name || n.name)
+      .filter(n => {
+        if (!n || (!n.building_name && !n.name)) return false;
+        if (isNaN(parseFloat(n.latitude)) || isNaN(parseFloat(n.longitude))) return false;
+        // Only include entrance nodes in location search results
+        const isEntrance = n.is_entrance === true ||
+          n.is_entrance === 'true' ||
+          (typeof n.type === 'string' && n.type.toLowerCase() === 'entrance') ||
+          ((n.building_name || n.name || '').toLowerCase().includes('entrance')) ||
+          ((n.building_name || n.name || '').toLowerCase().includes('gate'));
+        return isEntrance;
+      })
       .map(n => ({
         id:        n.id,
         name:      n.building_name || n.name,
@@ -131,7 +163,17 @@ export const DatabaseProvider = ({ children }) => {
   }, [events, nodes]);
 
   return (
-    <DatabaseContext.Provider value={{ loading, events, nodes, edges, searchItems }}>
+    <DatabaseContext.Provider value={{
+      loading,
+      events,
+      nodes,
+      edges,
+      searchItems,
+      refetchEvents: fetchEvents,
+      refetchNodes: fetchNodes,
+      refetchEdges: fetchEdges,
+      refetchAll: loadAllData
+    }}>
       {children}
     </DatabaseContext.Provider>
   );

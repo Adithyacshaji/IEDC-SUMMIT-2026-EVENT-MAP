@@ -35,7 +35,7 @@ function YDCard({ destination, route = [], onStart, onCancel }) {
   }, [route]);
 
   return (
-    <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-3 right-3 max-w-md mx-auto z-[100] pointer-events-none">
+    <div className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-3 right-3 max-w-md mx-auto z-[100] pointer-events-none">
       <div className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.16)] border border-gray-100 p-3.5 flex flex-col gap-3 animate-in slide-in-from-bottom duration-300">
         
         {/* Row 1: Pin icon, Title, Subtitle & Distance/Time Pill */}

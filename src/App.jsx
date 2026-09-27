@@ -13,6 +13,7 @@ import NavigationCard from "./components/common/NavigationCard";
 import FeedbackCard from "./components/common/FeedbackCard";
 import LocationAlertCard from "./components/common/LocationAlertCard";
 import YDRouteCard from "./components/common/YDRouteCard";
+import CampusCompassEmblem from "./components/common/CampusCompassEmblem";
 import { buildNodeMap, findNearestOutdoorNode, findOutdoorPath } from "./routing/outdoorRouter";
 import { findMatchingBuildingNode } from "./utils/buildingMatcher";
 import { gpsDistanceMeters } from "./utils/gpsDistance";
@@ -51,7 +52,7 @@ export default function App() {
   // GPS Alert Dismissal state
   const [dismissGpsAlert, setDismissGpsAlert] = useState(false);
 
-  // Always use live GPS in production
+  // Default to Real GPS location mode
   const [useDefaultLocation, setUseDefaultLocation] = useState(false);
 
   const handleRetryGps = async () => {
@@ -133,21 +134,26 @@ export default function App() {
     !isNaN(location[1])
   );
 
+  // Auto detect if device GPS is off-campus (> 1.2 km from campus entrance)
+  const isGpsOffCampus = useMemo(() => {
+    if (!isLiveGps) return true;
+    const dist = gpsDistanceMeters(location, DEFAULT_USER_POS);
+    return dist > 1200;
+  }, [location, isLiveGps]);
+
   // Computed active user coordinates
   const userCoords = useMemo(() => {
-    // If testing state is true, force Default Entrance Location
+    // If Test Mode is explicitly enabled by user, use Campus Entrance
     if (useDefaultLocation) {
       return DEFAULT_USER_POS;
     }
-    // Otherwise use real-time GPS location if available
-    if (location && Array.isArray(location) && location.length === 2 && location[0] && location[1]) {
+    // Prioritize real-time device GPS location
+    if (isLiveGps) {
       return location;
     }
-    if (location && typeof location === "object" && location.lat && location.lng) {
-      return [location.lat, location.lng];
-    }
+    // Fallback to campus entrance when live GPS fix is not available
     return DEFAULT_USER_POS;
-  }, [location, useDefaultLocation]);
+  }, [location, isLiveGps, useDefaultLocation]);
 
   // Active starting coordinates (uses customOrigin if selected by user, otherwise userCoords)
   const activeStartCoords = useMemo(() => {
@@ -161,14 +167,14 @@ export default function App() {
   const cleanStr = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
   // Display coords for the user icon:
-  // Within 5 m of the path → snap icon to the nearest point ON the path so it
+  // Within 8 m of the path → snap icon to the nearest point ON the path so it
   // travels smoothly along the line even when GPS noise pushes the raw fix sideways.
-  // Beyond 5 m → use real GPS (and the dotted connector + reroute will kick in).
+  // Beyond 8 m → use real GPS (and the dotted connector + reroute will kick in).
   const displayUserCoords = useMemo(() => {
     if (route && route.length >= 2 && userCoords) {
       const userLoc = { lat: userCoords[0], lng: userCoords[1] };
       const { point, distanceMeters } = getDistanceToRoute(route, userLoc);
-      if (distanceMeters <= 5 && point && Array.isArray(point)) {
+      if (distanceMeters <= 8 && point && Array.isArray(point)) {
         return point; // icon glued to path line
       }
     }
@@ -176,10 +182,10 @@ export default function App() {
   }, [route, userCoords]);
 
   // Off-route connector: {userPoint:[lat,lng], pathPoint:[lat,lng]}
-  // Set when user is >5 m from the route; cleared when back on route.
+  // Set when user is >8 m from the route; cleared when back on route.
   const [offRouteConnector, setOffRouteConnector] = React.useState(null);
 
-  // Live dynamic route update with off-route threshold (5m) & smooth path reduction
+  // Live dynamic route update with off-route threshold (8m) & smooth path reduction
   React.useEffect(() => {
     if (!destination) return;
 
@@ -190,11 +196,11 @@ export default function App() {
     if (currentRoute && currentRoute.length >= 2) {
       const { point, distanceMeters, segmentIndex } = getDistanceToRoute(currentRoute, userLoc);
 
-      // Within 5 m of the path — user is ON route, keep current path
-      if (distanceMeters <= 5) {
+      // Within 8 m of the path — user is ON route, keep current path
+      if (distanceMeters <= 8) {
         setOffRouteConnector(null); // clear connector — user is on path
-        // Snap path origin to route if within 3m, otherwise use activeStartCoords
-        const startPoint = (distanceMeters <= 3 && point && Array.isArray(point)) ? point : activeStartCoords;
+        // Snap path origin to route if within 8m, otherwise use activeStartCoords
+        const startPoint = (distanceMeters <= 8 && point && Array.isArray(point)) ? point : activeStartCoords;
         const remainingSegment = currentRoute.slice(segmentIndex + 1);
         const updatedRoute = [startPoint, ...remainingSegment];
 
@@ -204,49 +210,77 @@ export default function App() {
         return;
       }
 
-      // User is >5 m off-route: show dotted connector while rerouting
+      // User is >8 m off-route: show dotted connector while rerouting
       if (point && Array.isArray(point)) {
         setOffRouteConnector({ userPoint: activeStartCoords, pathPoint: point });
       }
     }
 
-    // User is > 5m OFF-ROUTE (or route is brand new/empty): recalculate A* path from user's current location
+    // User is > 8m OFF-ROUTE (or route is brand new/empty): recalculate A* path from user's current location
     const startNodeId = findNearestOutdoorNode(activeStartCoords[0], activeStartCoords[1], nodeMap);
-    let destNodeId = null;
-    let destPos = destination.position;
+    const isEvent = destination.type === 'event' || Boolean(destination.event_name) || Boolean(destination.speakers);
 
-    if (destination.routeNode && nodeMap[destination.routeNode]) {
-      destNodeId = destination.routeNode;
+    let destPos = destination.position && Array.isArray(destination.position) && destination.position.length === 2 && !isNaN(destination.position[0]) && !isNaN(destination.position[1])
+      ? destination.position
+      : null;
+
+    if (!destPos && destination.routeNode && nodeMap[destination.routeNode]) {
       destPos = nodeMap[destination.routeNode];
-    } else if (destination.id && nodeMap[destination.id]) {
-      destNodeId = destination.id;
-      destPos = nodeMap[destination.id];
-    } else if (destination.position && Array.isArray(destination.position)) {
-      destNodeId = findNearestOutdoorNode(destination.position[0], destination.position[1], nodeMap);
-    } else {
-      const matchingNode = findMatchingBuildingNode(destination.building || destination.name || destination.event_name, nodes);
-      if (matchingNode) {
-        destNodeId = matchingNode.id;
+    }
+
+    let matchingNode = null;
+    if (!destPos) {
+      const buildingToMatch = destination.building || destination.name || destination.event_name;
+      matchingNode = findMatchingBuildingNode(buildingToMatch, nodes);
+      if (matchingNode && matchingNode.latitude && matchingNode.longitude) {
         destPos = [parseFloat(matchingNode.latitude), parseFloat(matchingNode.longitude)];
       }
     }
 
+    let destNodeId = null;
+    if (destination.routeNode && nodeMap[destination.routeNode]) {
+      destNodeId = destination.routeNode;
+    } else if (matchingNode && matchingNode.id && nodeMap[matchingNode.id]) {
+      destNodeId = matchingNode.id;
+    } else if (!isEvent && destination.id && nodeMap[destination.id]) {
+      destNodeId = destination.id;
+    } else if (destPos) {
+      destNodeId = findNearestOutdoorNode(destPos[0], destPos[1], nodeMap);
+    }
+
     let pathNodeIds = [];
-    if (startNodeId && destNodeId && startNodeId !== destNodeId) {
-      pathNodeIds = findOutdoorPath(startNodeId, destNodeId, nodeMap, edges);
+    if (startNodeId && destNodeId) {
+      if (startNodeId === destNodeId) {
+        pathNodeIds = [startNodeId];
+      } else {
+        pathNodeIds = findOutdoorPath(startNodeId, destNodeId, nodeMap, edges);
+      }
     }
 
-    let routeCoords = pathNodeIds
+    let routeNodes = pathNodeIds
       .map((id) => nodeMap[id])
-      .filter((coord) => coord && Array.isArray(coord));
+      .filter((coord) => coord && Array.isArray(coord) && coord.length === 2 && !isNaN(coord[0]) && !isNaN(coord[1]));
 
-    if (routeCoords.length < 2 && destPos) {
-      routeCoords = [activeStartCoords, destPos];
-    } else if (routeCoords.length >= 2) {
-      routeCoords = [activeStartCoords, ...routeCoords];
+    if (routeNodes.length >= 2) {
+      const userLoc = { lat: activeStartCoords[0], lng: activeStartCoords[1] };
+      const { point, distanceMeters, segmentIndex } = getDistanceToRoute(routeNodes, userLoc);
+
+      if (distanceMeters <= 8 && point && Array.isArray(point)) {
+        // Within 8m: Snap route origin directly to point ON path line segment!
+        const remainingSegment = routeNodes.slice(segmentIndex + 1);
+        const routeCoords = [point, ...remainingSegment];
+        setRoute(routeCoords.length >= 2 ? routeCoords : routeNodes);
+        setOffRouteConnector(null);
+      } else {
+        // > 8m off-route: keep route starting on graph, set dotted connector
+        setRoute(routeNodes);
+        if (point && Array.isArray(point)) {
+          setOffRouteConnector({ userPoint: activeStartCoords, pathPoint: point });
+        }
+      }
+    } else if (destPos) {
+      setRoute([activeStartCoords, destPos]);
     }
-
-    setRoute(routeCoords);
   }, [activeStartCoords, destination, nodeMap, nodes, edges]);
 
   // Calculate live distance in meters from active user location to destination
@@ -264,44 +298,86 @@ export default function App() {
   const handleSelectDestination = (targetItem = null) => {
     if (!targetItem) return;
 
-    // Resolve target position
-    let destPos = targetItem.position;
+    const isEvent = targetItem.type === 'event' || Boolean(targetItem.event_name) || Boolean(targetItem.speakers);
+
+    // 1. Resolve destination position (destPos)
+    let destPos = targetItem.position && Array.isArray(targetItem.position) && targetItem.position.length === 2 && !isNaN(targetItem.position[0]) && !isNaN(targetItem.position[1])
+      ? targetItem.position
+      : null;
+
+    if (!destPos && targetItem.routeNode && nodeMap[targetItem.routeNode]) {
+      destPos = nodeMap[targetItem.routeNode];
+    }
+
+    let matchingNode = null;
     if (!destPos) {
-      if (targetItem.routeNode && nodeMap[targetItem.routeNode]) {
-        destPos = nodeMap[targetItem.routeNode];
-      } else if (targetItem.id && nodeMap[targetItem.id]) {
-        destPos = nodeMap[targetItem.id];
-      } else {
-        const matchingNode = findMatchingBuildingNode(targetItem.building || targetItem.name || targetItem.event_name, nodes);
-        if (matchingNode) {
-          destPos = [parseFloat(matchingNode.latitude), parseFloat(matchingNode.longitude)];
-        }
+      const buildingToMatch = targetItem.building || targetItem.name || targetItem.event_name;
+      matchingNode = findMatchingBuildingNode(buildingToMatch, nodes);
+      if (matchingNode && matchingNode.latitude && matchingNode.longitude) {
+        destPos = [parseFloat(matchingNode.latitude), parseFloat(matchingNode.longitude)];
       }
     }
 
+    // 2. Resolve destination node ID (destNodeId) — prioritize routeNode over event id!
+    let destNodeId = null;
+    if (targetItem.routeNode && nodeMap[targetItem.routeNode]) {
+      destNodeId = targetItem.routeNode;
+    } else if (matchingNode && matchingNode.id && nodeMap[matchingNode.id]) {
+      destNodeId = matchingNode.id;
+    } else if (!isEvent && targetItem.id && nodeMap[targetItem.id]) {
+      destNodeId = targetItem.id;
+    } else if (destPos) {
+      destNodeId = findNearestOutdoorNode(destPos[0], destPos[1], nodeMap);
+    }
+
     const startNodeId = findNearestOutdoorNode(activeStartCoords[0], activeStartCoords[1], nodeMap);
-    let destNodeId = targetItem.id && nodeMap[targetItem.id] ? targetItem.id : (destPos ? findNearestOutdoorNode(destPos[0], destPos[1], nodeMap) : null);
 
     let pathNodeIds = [];
-    if (startNodeId && destNodeId && startNodeId !== destNodeId) {
-      pathNodeIds = findOutdoorPath(startNodeId, destNodeId, nodeMap, edges);
+    if (startNodeId && destNodeId) {
+      if (startNodeId === destNodeId) {
+        pathNodeIds = [startNodeId];
+      } else {
+        pathNodeIds = findOutdoorPath(startNodeId, destNodeId, nodeMap, edges);
+      }
     }
 
-    let routeCoords = pathNodeIds
+    let routeNodes = pathNodeIds
       .map((id) => nodeMap[id])
-      .filter((coord) => coord && Array.isArray(coord));
+      .filter((coord) => coord && Array.isArray(coord) && coord.length === 2 && !isNaN(coord[0]) && !isNaN(coord[1]));
 
-    if (routeCoords.length < 2 && destPos) {
-      routeCoords = [activeStartCoords, destPos];
-    } else if (routeCoords.length >= 2) {
-      routeCoords = [activeStartCoords, ...routeCoords];
+    let finalRoute = routeNodes;
+    if (routeNodes.length >= 2) {
+      const userLoc = { lat: activeStartCoords[0], lng: activeStartCoords[1] };
+      const { point, distanceMeters, segmentIndex } = getDistanceToRoute(routeNodes, userLoc);
+
+      if (distanceMeters <= 8 && point && Array.isArray(point)) {
+        // Within 8m: Snap route origin directly to point ON path line segment!
+        const remainingSegment = routeNodes.slice(segmentIndex + 1);
+        finalRoute = [point, ...remainingSegment];
+        setOffRouteConnector(null);
+      } else {
+        finalRoute = routeNodes;
+        if (point && Array.isArray(point)) {
+          setOffRouteConnector({ userPoint: activeStartCoords, pathPoint: point });
+        }
+      }
+    } else if (destPos) {
+      finalRoute = [activeStartCoords, destPos];
+      setOffRouteConnector(null);
+    } else if (routeNodes.length === 1) {
+      finalRoute = [activeStartCoords, routeNodes[0]];
+      setOffRouteConnector(null);
     }
 
-    setRoute(routeCoords);
-    setDestination({
+    const resolvedDestination = {
       ...targetItem,
-      position: destPos || (routeCoords.length > 0 ? routeCoords[routeCoords.length - 1] : null)
-    });
+      type: isEvent ? 'event' : (targetItem.type || 'location'),
+      routeNode: destNodeId,
+      position: destPos || (finalRoute.length > 0 ? finalRoute[finalRoute.length - 1] : activeStartCoords)
+    };
+
+    setRoute(finalRoute);
+    setDestination(resolvedDestination);
     setSelectedLocation(targetItem);
     setIsNavigating(false); // Keeps in Route Preview mode until user clicks "Start Navigation"
     setBottomSheetOpen(false);
@@ -324,18 +400,23 @@ export default function App() {
     setBottomSheetOpen(true);
   };
 
-  // Filter events strictly for current activeCategory in BottomSheet
+  // Filter events strictly for current activeCategory in BottomSheet using database events
   const categoryEvents = useMemo(() => {
-    if (!events || events.length === 0) return [];
-    if (!activeCategory) return events;
+    const eventItems = (events || []).map(e => ({
+      ...e,
+      type: 'event',
+      name: e.event_name,
+      event_category: e.event_category || e.category || 'General'
+    }));
+    if (!eventItems || eventItems.length === 0) return [];
+    if (!activeCategory) return eventItems;
 
-    const targetClean = cleanStr(activeCategory);
+    const normActive = activeCategory.trim().toLowerCase();
 
-    return events.filter((e) => {
-      const cat = e.event_category || (Array.isArray(e.speakers) && e.speakers[0]) || e.category || "";
-      const catClean = cleanStr(cat);
-      if (!catClean) return false;
-      return catClean === targetClean || catClean.includes(targetClean) || targetClean.includes(catClean);
+    return eventItems.filter((e) => {
+      const cat = (e.event_category || e.category || '').trim().toLowerCase();
+      if (!cat) return false;
+      return cat === normActive || cat.includes(normActive) || normActive.includes(cat);
     });
   }, [events, activeCategory]);
 
@@ -397,7 +478,7 @@ export default function App() {
       {!showLanding && showLiveModal && (
         <LiveEventsModal
           ref={liveModalRef}
-          events={events}
+          events={(searchItems || []).filter(i => i.type === 'event')}
           onNavigate={(event) => {
             handleSelectDestination(event);
           }}
@@ -407,6 +488,21 @@ export default function App() {
 
       {/* Top Floating Control Bar */}
       <div className="absolute top-[calc(0.75rem+env(safe-area-inset-top))] left-0 right-0 z-40 px-3 sm:px-4 max-w-lg mx-auto pointer-events-none flex flex-col gap-2">
+        {!destination && (
+          <div className="w-full bg-white/95 backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-md border border-gray-200/80 flex items-center justify-between pointer-events-auto">
+            <CampusCompassEmblem size="small" />
+
+            <button
+              onClick={() => setShowLiveModal(true)}
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-gradient-to-r from-[#0F4C81] to-[#003DA5] text-white rounded-xl text-xs font-extrabold shadow-sm hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+              title="Open Live Events Guide Popup"
+            >
+              <span className="w-2.5 h-2.5 rounded-full bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.9)] animate-pulse"></span>
+              <span>Events</span>
+            </button>
+          </div>
+        )}
+
         <div className="w-full pointer-events-auto">
           {destination ? (
             <YDRouteCard
@@ -439,7 +535,6 @@ export default function App() {
             activeCategory={activeCategory}
           />
         )}
-
       </div>
 
       {/* Main Outdoor Map */}
@@ -454,7 +549,10 @@ export default function App() {
           isNavigating={isNavigating}
           offRouteConnector={offRouteConnector}
           onSelectLocation={(loc) => {
-            handleSelectDestination(loc);
+            // Only allow tapping map icons to show path when user has NOT searched yet
+            if (!destination) {
+              handleSelectDestination(loc);
+            }
           }}
         />
       </div>
@@ -481,9 +579,9 @@ export default function App() {
       )}
 
       {/* Post-Navigation Feedback Modal */}
-      {showFeedbackCard && (
+      {(showFeedbackCard) && (
         <FeedbackCard
-          destination={feedbackDestination}
+          destination={feedbackDestination || { name: 'IEDC Summit 2026', type: 'event', event_name: 'IEDC Summit 2026' }}
           onClose={() => setShowFeedbackCard(false)}
         />
       )}

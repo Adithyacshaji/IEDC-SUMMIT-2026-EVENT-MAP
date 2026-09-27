@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './LandingScreen.css';
 
 export default function LandingScreen({ onFinish }) {
@@ -12,65 +12,62 @@ export default function LandingScreen({ onFinish }) {
     }, 400);
   };
 
-  return (
-    <div 
-      className={`landing-overlay ${isExiting ? 'landing-exit' : ''}`}
-    >
-      {/* Animated Subtle Blue/Black Grid Background */}
-      <div className="landing-grid-bg" />
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      handleEnter();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
 
-      {/* Main Center Container */}
-      <div className="landing-content-card">
-        {/* Animated Headline */}
-        <div className="landing-text-container">
-          <h1 className="landing-title">
-            <span className="title-word title-explore">EXPLORE</span>{" "} <br/>
-            <span className="title-word title-iedc">IEDC SUMMIT</span>{" "}
-            <span className="title-word title-year">2026</span>
-          </h1>
-          <p className="landing-subtitle">
-            Smart Campus Navigation & Real-Time Event Guide
-          </p>
-        </div>
+  // return (
+//     <div 
+//       className={`landing-overlay ${isExiting ? 'landing-exit' : ''}`}
+//       onClick={handleEnter}
+//     >
+//       {/* Animated Subtle Blue Grid Background */}
+//       <div className="landing-grid-bg" />
+
+//       {/* Main Center Container */}
+//       <div className="landing-content-card flex flex-col items-center text-center">
         
+//         {/* 1. Campus Compass Logo in Center */}
+//         <div className="loading-logo-wrapper mb-5">
+//           <img 
+//             src="/campus compass.jpeg" 
+//             alt="Campus Compass Logo" 
+//             className="loading-logo-img" 
+//           />
+//         </div>
 
-        {/* Logo Frame */}
-        <div className="landing-logo-wrapper">
-          <img 
-            src="/iedcsummit_logo.jpg" 
-            alt="IEDC Summit 2026 Logo" 
-            className="landing-logo-img" 
-          />
-        </div>
+//         {/* 2. Below Logo: CAMPUS COMPASS */}
+//         <h1 
+//           className="loading-title text-2xl sm:text-3xl font-bold tracking-tight mb-1 select-none"
+//           style={{ fontFamily: "'Libre Baskerville', 'Libre Bodoni', Georgia, serif", color: '#0F4C81' }}
+//         >
+//           CAMPUS COMPASS
+//         </h1>
 
-        {/* Top Summit Badge */}
-        <div className="landing-top-badge">
-          <span className="badge-pulse-dot" />
-          <span>IEDC SUMMIT 2026</span>
-        </div>
+//         {/* 3. Below CAMPUS COMPASS: IEDC CCE */}
+//         <h2 className="loading-subtitle text-xs sm:text-sm font-black tracking-widest text-black uppercase mb-2 select-none">
+//           IEDC CCE
+//         </h2>
 
-        {/* Interactive Call-To-Action Button */}
-        <button className="landing-cta-btn" onClick={handleEnter}>
-          <span>Locate Events</span>
-          <svg className="cta-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="5" y1="12" x2="19" y2="12" />
-            <polyline points="12 5 19 12 12 19" />
-          </svg>
-        </button>
+//         {/* 4. Below IEDC CCE: Christ College of Engineering Irinjalakuda (Autonomous) */}
+//         <p className="loading-college text-xs sm:text-sm font-semibold text-slate-600 max-w-xs leading-snug mb-6 select-none">
+//           Christ College of Engineering Irinjalakuda (Autonomous)
+//         </p>
 
-        {/* Quick Features Highlight */}
-        <div className="landing-features-row">
-          <div className="feature-pill">
-            <span className="pill-dot blue" /> Activity Hub
-          </div>
-          <div className="feature-pill">
-            <span className="pill-dot black" /> Live Events
-          </div>
-          <div className="feature-pill">
-            <span className="pill-dot blue" /> Venue Guide
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+//         {/* Animated Loading Bar & Status */}
+//         <div className="w-full max-w-[180px] flex flex-col items-center gap-2 mt-1">
+//           <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden border border-slate-200/80">
+//             <div className="loading-progress-bar h-full bg-[#0F4C81] rounded-full"></div>
+//           </div>
+//           <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">
+//             Loading Map...
+//           </span>
+//         </div>
+
+//       </div>
+//     </div>
+  // );
 }

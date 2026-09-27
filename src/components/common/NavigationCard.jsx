@@ -29,7 +29,7 @@ export default function NavigationCard({ destination, isNearBuilding = false, on
   // Shows a clean floating "Cancel Navigation" bottom bar
   if (!isNearBuilding) {
     return (
-      <div className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-3 right-3 max-w-md mx-auto z-[100] pointer-events-none">
+      <div className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-3 right-3 max-w-md mx-auto z-[100] pointer-events-none">
         <div className="pointer-events-auto bg-slate-900/95 text-white backdrop-blur-md rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.25)] border border-slate-800 p-3.5 flex items-center justify-between gap-3 animate-in slide-in-from-bottom duration-300">
           
           {/* Left: Pulsing Nav Status & Destination Title */}
@@ -70,7 +70,7 @@ export default function NavigationCard({ destination, isNearBuilding = false, on
   // MODE 2: Reached Near Building
   // Shows full Building Information Card with room, floor, building details & Reached / Cancel buttons
   return (
-    <div className="fixed bottom-[calc(0.75rem+env(safe-area-inset-bottom))] left-3 right-3 max-w-md mx-auto z-[100] pointer-events-none">
+    <div className="fixed bottom-[calc(3.5rem+env(safe-area-inset-bottom))] left-3 right-3 max-w-md mx-auto z-[100] pointer-events-none">
       <div className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_6px_22px_rgba(0,0,0,0.16)] border border-blue-200 p-4 flex flex-col gap-3 animate-in slide-in-from-bottom duration-300">
         
         {/* Row 1: Header - Near Building Badge, Title & Icon */}

@@ -12,6 +12,13 @@ if (config) {
 // Campus center default (Lng, Lat order for MapLibre GL)
 const CAMPUS_CENTER_LNG_LAT = [76.285827, 10.361964];
 
+// ─── MAP ZOOM LIMITS & DEFAULTS ──────────────────────────────────────────────
+// Modify MAP_MAX_ZOOM to change maximum zoom level (how far in user can zoom)
+// Modify MAP_MIN_ZOOM to change minimum zoom level (how far out user can zoom)
+export const MAP_MIN_ZOOM = 15;      // Minimum zoom level limit (zoomed out max)
+export const MAP_MAX_ZOOM = 18.5;    // Maximum zoom level limit (zoomed in max - edit here to reduce zoom limit)
+export const MAP_DEFAULT_ZOOM = 12.5;// Default initial map camera zoom
+
 // Flag to show/hide the Outdoor Node Debugger button (set to true when path correction is needed)
 const ENABLE_NODE_DEBUGGER = false;
 
@@ -72,7 +79,8 @@ const BUILDING_LABELS = [
   { name: 'Auditorium',       lat: 10.358643, lng: 76.285676 },
 ];
 
-const LABEL_SHOW_ZOOM = 19.5; // labels visible at overview zoom — hides only when zoomed very far out
+const LABEL_HIDE_ZOOM = 15.2; // Building name labels hide when zooming out below 15.2 to avoid congestion
+const LABEL_FULL_ZOOM = 15.8; // Building name labels stay fully visible from 15.8 and above
 
 /**
  * Returns an SVG string for a curved directional arrow based on turn angle.
@@ -279,7 +287,7 @@ const MOBILE_SAFE_MAP_STYLE = {
 export default function CampusMap({
   selectedLocation,
   currentLocation,
-  isLiveGps = false,
+  isLiveGps = true,
   heading,
   route = [],
   destination,
@@ -444,7 +452,7 @@ export default function CampusMap({
       if (!hasCenteredLiveGpsRef.current) {
         map.flyTo({
           center: [currentLocation[1], currentLocation[0]],
-          zoom: 17.2,
+          zoom: 18.2,
           bearing: 180,
           pitch: 30,
           duration: 1200,
@@ -455,7 +463,7 @@ export default function CampusMap({
     } else if (!initialCenteredRef.current) {
       map.flyTo({
         center: [currentLocation[1], currentLocation[0]],
-        zoom: 17.2,
+        zoom: 17.8,
         bearing: 180,
         pitch: 30,
         duration: 1000,
@@ -749,9 +757,9 @@ export default function CampusMap({
       container: mapContainerRef.current,
       style: MOBILE_SAFE_MAP_STYLE,
       center: CAMPUS_CENTER_LNG_LAT,
-      zoom: 16.5,
-      minZoom: 15,
-      maxZoom: 22,
+      zoom: MAP_DEFAULT_ZOOM,
+      minZoom: MAP_MIN_ZOOM,
+      maxZoom: MAP_MAX_ZOOM,
       pitch: 30, // 3D Camera tilt like Google Maps
       bearing: 180, // Default south-facing — campus is best viewed from south
       trackResize: true,
@@ -1099,26 +1107,24 @@ export default function CampusMap({
     if (!destMarkerRef.current) {
       const el = document.createElement("div");
       el.className = "destination-marker-container";
-      el.style.width = "36px";
-      el.style.height = "36px";
-      el.style.cursor = "pointer";
+      el.style.cssText = "width:36px;height:48px;display:flex;align-items:center;justify-content:center;cursor:pointer;";
 
       el.innerHTML = `
-        <div style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">
-          <div style="
-            background: #ef4444;
-            width: 36px;
-            height: 36px;
-            border-radius: 50% 50% 50% 0;
-            transform: rotate(-45deg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.45);
-            border: 2px solid #ffffff;
-          ">
-            <div style="transform: rotate(45deg); color: #fff; font-weight: bold; font-size: 14px;">📍</div>
-          </div>
+        <div style="position:relative;width:36px;height:48px;display:flex;align-items:center;justify-content:center;animation:pin-float 2.2s ease-in-out infinite;">
+          <svg width="36" height="46" viewBox="0 0 36 46" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 6px 12px rgba(220, 38, 38, 0.5));">
+            <defs>
+              <linearGradient id="destPinGrad" x1="18" y1="0" x2="18" y2="44" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#FF4D4D"/>
+                <stop offset="1" stop-color="#DC2626"/>
+              </linearGradient>
+            </defs>
+            <!-- Pin Body -->
+            <path d="M18 0C8.05887 0 0 8.05887 0 18C0 29.5 18 44 18 44C18 44 36 29.5 36 18C36 8.05887 27.9411 0 18 0Z" fill="url(#destPinGrad)" stroke="#FFFFFF" stroke-width="2.5"/>
+            <!-- Outer Ring -->
+            <circle cx="18" cy="17" r="7.5" fill="#FFFFFF"/>
+            <!-- Core Red Target Circle -->
+            <circle cx="18" cy="17" r="4" fill="#DC2626"/>
+          </svg>
         </div>
       `;
 
@@ -1150,9 +1156,10 @@ export default function CampusMap({
       const iconBg = isSelected ? "#ef4444" : bg;
       const size = isSelected ? 38 : 32;
 
+      const isHasSearched = Boolean(destination);
       const el = document.createElement("div");
       el.className = "venue-marker-container";
-      el.style.cursor = "pointer";
+      el.style.cursor = isHasSearched ? "default" : "pointer";
       el.style.width = `${size}px`;
       el.style.height = `${size}px`;
 
@@ -1175,7 +1182,8 @@ export default function CampusMap({
       `;
 
       el.addEventListener("click", () => {
-        if (onSelectLocation) onSelectLocation(loc);
+        // Only allow tapping on map icons to select destination and show path when user has NOT searched
+        if (!destination && onSelectLocation) onSelectLocation(loc);
       });
 
       const marker = new Marker({
@@ -1189,17 +1197,25 @@ export default function CampusMap({
     });
   }, [mapMarkers, selectedLocation, destination, onSelectLocation, mapLoaded]);
 
-  // ─── Building Name Labels (zoom-aware) ────────────────────────────────────
+  // ─── Building Name Labels (Zoom-Driven Visibility) ────────────────────────
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapLoaded) return;
 
+    buildingLabelMarkersRef.current = [];
+
     // Create one label marker per building
     BUILDING_LABELS.forEach((b) => {
-      const el = document.createElement('div');
-      el.className = 'building-name-label';
-      el.style.cssText = `
-        background: rgba(255,255,255,0.92);
+      // Outer wrapper element — owned strictly by MapLibre GL for translate3d positioning
+      const container = document.createElement('div');
+      container.className = 'building-name-marker-container';
+      container.style.cssText = 'pointer-events:none; user-select:none;';
+
+      // Inner badge element — owned by us for styling and smooth zoom fade
+      const inner = document.createElement('div');
+      inner.className = 'building-name-label-badge';
+      inner.style.cssText = `
+        background: rgba(255, 255, 255, 0.92);
         color: #1e3a5f;
         font-family: 'Inter', 'Outfit', sans-serif;
         font-size: 11px;
@@ -1209,25 +1225,33 @@ export default function CampusMap({
         border-radius: 20px;
         white-space: nowrap;
         pointer-events: none;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-        border: 1px solid rgba(30,58,95,0.15);
-        transition: opacity 0.25s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+        border: 1px solid rgba(30, 58, 95, 0.15);
+        transition: opacity 0.25s ease-in-out;
         user-select: none;
       `;
-      el.textContent = b.name;
+      inner.textContent = b.name;
+      container.appendChild(inner);
 
-      const marker = new Marker({ element: el, anchor: 'top' })
+      const marker = new Marker({ element: container, anchor: 'center' })
         .setLngLat([b.lng, b.lat])
         .addTo(map);
 
       buildingLabelMarkersRef.current.push(marker);
     });
 
-    // Show/hide based on current zoom
+    // Hide labels smoothly only when zoomed out below 15.5 to avoid map clutter
     const updateLabelVisibility = () => {
+      const map = mapRef.current;
+      if (!map) return;
       const zoom = map.getZoom();
+      const isVisible = zoom >= 15.5;
+
       buildingLabelMarkersRef.current.forEach((m) => {
-        m.getElement().style.opacity = zoom >= LABEL_SHOW_ZOOM ? '1' : '0';
+        const container = m.getElement();
+        if (container && container.firstElementChild) {
+          container.firstElementChild.style.opacity = isVisible ? '1' : '0';
+        }
       });
     };
 
@@ -1235,11 +1259,14 @@ export default function CampusMap({
     map.on('zoom', updateLabelVisibility);
 
     return () => {
-      map.off('zoom', updateLabelVisibility);
+      if (mapRef.current) {
+        mapRef.current.off('zoom', updateLabelVisibility);
+      }
       buildingLabelMarkersRef.current.forEach((m) => m.remove());
       buildingLabelMarkersRef.current = [];
     };
   }, [mapLoaded]);
+  // ──────────────────────────────────────────────────────────────────────────
   // ──────────────────────────────────────────────────────────────────────────
 
   // Render Route Flow Arrow Markers (Optimized Marker Reuse to prevent DOM thrashing & rAF lag)

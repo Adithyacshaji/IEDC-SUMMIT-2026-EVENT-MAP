@@ -1107,7 +1107,67 @@ body,
   }
 }
 
+/* Gentle floating animation for destination marker pin */
+@keyframes pin-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
 /* Route arrow pointer-events reset */
 .route-arrow-marker {
   pointer-events: none !important;
+}
+
+/* ── MapLibre Popups Smooth Animations ────────────────────────────────────── */
+.maplibregl-popup {
+  animation: mapPopupIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  transform-origin: bottom center;
+  z-index: 900;
+  will-change: transform, opacity;
+}
+
+@keyframes mapPopupIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.86) translateY(12px);
+  }
+  65% {
+    opacity: 1;
+    transform: scale(1.02) translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.maplibregl-popup-content {
+  border-radius: 16px !important;
+  box-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.12) !important;
+  padding: 0 !important;
+  background: transparent !important;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.maplibregl-popup-tip {
+  border-top-color: #0f172a !important;
+  border-bottom-color: #0f172a !important;
+  transition: opacity 0.2s ease;
+}
+
+.maplibregl-popup-close-button {
+  color: #94a3b8 !important;
+  font-size: 16px !important;
+  padding: 4px 8px !important;
+  border-radius: 50% !important;
+  transition: all 0.2s ease !important;
+}
+.maplibregl-popup-close-button:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.15) !important;
 }
